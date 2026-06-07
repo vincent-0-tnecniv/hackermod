@@ -1,0 +1,37 @@
+{
+	"schemaVersion": 1,
+	"id": "hackermod",
+	"version": "${version}",
+	"name": "Hacker Mod",
+	"description": "This mod is an Alan Becker reference AND a mod developer's favorite!",
+	"authors": [
+		"vincent00tnecniv"
+	],
+	"contact": {
+		"homepage": "",
+		"sources": ""
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/hackermod/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.vincent.hackermod.HackerMod"
+		],
+		"fabric-datagen": [
+			"net.vincent.hackermod.HackerModDataGenerator"
+		],
+		"client": [
+			"net.vincent.hackermod.HackerModClient"
+		]
+	},
+	"mixins": [
+		"hackermod.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_debug_stick": {
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:debug_stick"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "hackermod:hacker_hand"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_debug_stick"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "hackermod:hacker_hand"
+    ]
+  }
+}
