@@ -19,7 +19,7 @@ public class ModItemGroups {
 
     public static final ItemGroup MOD_ITEMS_GROUP = createModItemGroups(
             "mod_items", ModItems.HACKER_HAND,
-            "itemgroup.tutorialmod.mod_items"
+            "itemgroup.hackermod.mod_items"
     );
 
     /*
