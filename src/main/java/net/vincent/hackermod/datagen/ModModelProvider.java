@@ -29,8 +29,7 @@ public class ModModelProvider extends FabricModelProvider {
         // i.e. cannot use data gen
         // When an item has a model predicate, its texture can change based on a set criteria
         // e.g. Coral Chunk in Cataclysm, it changes texture based on its stack size
-
-        itemModelGenerator.register(ModItems.HACKER_HAND, Models.GENERATED);
+        // itemModelGenerator.register(ModItems.HACKER_HAND, Models.GENERATED);
         // for the hand item
 
         // itemModelGenerator.registerArmor(((ArmorItem) ModItems.PINK_GARNET_HELMET));
