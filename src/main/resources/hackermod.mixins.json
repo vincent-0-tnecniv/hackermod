@@ -3,7 +3,6 @@
 	"package": "net.vincent.hackermod.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"HackerHandMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -5,6 +5,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemUsageContext;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -22,9 +24,16 @@ public class HackerHandItem extends Item {
         BlockState state = world.getBlockState(pos);
         PlayerEntity player = context.getPlayer();
 
-        // Only run on client side
+        // Don't open for block entities
+        if (world.getBlockEntity(pos) != null) {
+            if (player != null) {
+                player.sendMessage(Text.literal("§cBlock entities not supported yet!"), true);
+            }
+            return ActionResult.FAIL;
+        }
+
         if (world.isClient && player != null) {
-            // Just open the screen - the screen handles its own background!
+            // Open screen WITHOUT passing ServerWorld
             MinecraftClient.getInstance().setScreen(new HackerHandScreen(pos, state));
             return ActionResult.SUCCESS;
         }

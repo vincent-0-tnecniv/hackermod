@@ -1,15 +1,21 @@
 package net.vincent.hackermod.screen;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.gui.widget.TextWidget;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.vincent.hackermod.HackerMod;
+import net.vincent.hackermod.networking.BlockUpdatePacket;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class HackerHandScreen extends Screen {
     public static final Identifier GUI_TEXTURE =
@@ -17,13 +23,9 @@ public class HackerHandScreen extends Screen {
 
     private final BlockPos blockPos;
     private final BlockState blockState;
+    private final List<PropertyEditor> propertyEditors = new ArrayList<>();
 
-    public int centerX;
-    public int centerY;
-
-    // Text field for editing
-    private TextFieldWidget propertyEditorField;
-    private String currentPropertyValue;
+    private int nextY = 80; // Track Y position for each property
 
     public HackerHandScreen(BlockPos pos, BlockState state) {
         super(Text.literal("Block Editor - " + state.getBlock().getName().getString()));
@@ -35,113 +37,157 @@ public class HackerHandScreen extends Screen {
     protected void init() {
         super.init();
 
-        centerX = this.width / 2;
-        centerY = this.height / 2;
+        int centerX = this.width / 2;
+        int centerY = this.height / 2;
 
-        // Create the text field
-        this.propertyEditorField = new TextFieldWidget(
-                this.textRenderer,           // Text renderer
-                centerX - 100,               // X position
-                centerY - 20,                // Y position
-                200,                         // Width
-                20,                          // Height
-                Text.literal("Edit Property") // Label
-        );
+        // Reset Y position
+        nextY = 100;
 
-        // Set initial text (show first property as example)
-        if (!blockState.getProperties().isEmpty()) {
-            Property<?> firstProperty = blockState.getProperties().iterator().next();
-            Object value = blockState.get(firstProperty);
-            this.currentPropertyValue = value.toString();
-            this.propertyEditorField.setText(this.currentPropertyValue);
-        } else {
-            this.propertyEditorField.setText("No editable properties");
-            this.propertyEditorField.setEditable(false);
+        // Create editor for each property
+        for (Property<?> property : blockState.getProperties()) {
+            PropertyEditor editor = new PropertyEditor(property, nextY);
+            propertyEditors.add(editor);
+            nextY += 30; // Space between each property
         }
 
-        // Optional: Add a hint text when empty
-        this.propertyEditorField.setPlaceholder(Text.literal("Enter new value..."));
-
-        // Set max length
-        this.propertyEditorField.setMaxLength(50);
-
-        // Add change listener (optional - for live preview)
-        this.propertyEditorField.setChangedListener(text -> {
-            this.currentPropertyValue = text;
-            HackerMod.LOGGER.info("Property value changed to: " + text);
-        });
-
-        // Add the text field to the screen
-        this.addDrawableChild(this.propertyEditorField);
-
-        // Close button (you'll replace with confirm later)
+        // Confirm button
         this.addDrawableChild(ButtonWidget.builder(
-                Text.literal("Close"),
+                Text.literal("Confirm"),
+                button -> {
+                    for (PropertyEditor editor : propertyEditors) {
+                        if (editor.hasChanges()) {
+                            ClientPlayNetworking.send(new BlockUpdatePacket(
+                                    blockPos,
+                                    editor.getPropertyName(),
+                                    editor.getNewValue()
+                            ));
+                            HackerMod.LOGGER.info("Updating {} to {}", editor.getPropertyName(), editor.getNewValue());
+                        }
+                    }
+                    this.close();
+                }
+        ).dimensions(centerX + 10, centerY + 50, 100, 20).build());
+
+        // Cancel button
+        this.addDrawableChild(ButtonWidget.builder(
+                Text.literal("Cancel"),
                 button -> this.close()
-        ).dimensions(centerX - 50, centerY + 50, 100, 20).build());
+        ).dimensions(centerX - 110, centerY + 50, 100, 20).build());
+    }
+
+    // Inner class to handle each property
+    private class PropertyEditor {
+        private final Property<?> property;
+        private final TextWidget labelWidget;
+        private final TextFieldWidget valueField;
+        private String originalValue;
+        private String newValue;
+
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        public PropertyEditor(Property property, int yPos) {
+            this.property = property;
+            this.originalValue = blockState.get(property).toString();
+            this.newValue = this.originalValue;
+
+            int centerX = HackerHandScreen.this.width / 2;
+            int labelWidth = 100;
+            int fieldWidth = 100;
+            int spacing = 10;
+
+            // Create label (left side)
+            this.labelWidget = new TextWidget(
+                    centerX - labelWidth - spacing,
+                    yPos,
+                    labelWidth,
+                    20,
+                    Text.literal(property.getName() + ":"),
+                    HackerHandScreen.this.textRenderer
+            );
+            this.labelWidget.setTextColor(0x00FF00); // Neon green color
+
+            // Create text field (right side)
+            this.valueField = new TextFieldWidget(
+                    HackerHandScreen.this.textRenderer,
+                    centerX + spacing,
+                    yPos,
+                    fieldWidth,
+                    20,
+                    Text.literal("Enter value")
+            );
+            this.valueField.setText(this.originalValue);
+            this.valueField.setPlaceholder(Text.literal("Current: " + this.originalValue));
+            this.valueField.setChangedListener(text -> {
+                this.newValue = text;
+            });
+
+            // Add to screen
+            HackerHandScreen.this.addDrawableChild(this.labelWidget);
+            HackerHandScreen.this.addDrawableChild(this.valueField);
+        }
+
+        public String getPropertyName() {
+            return property.getName();
+        }
+
+        public String getNewValue() {
+            return newValue;
+        }
+
+        public boolean hasChanges() {
+            return !newValue.equals(originalValue);
+        }
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         this.renderCustomBackground(context);
-
         super.render(context, mouseX, mouseY, delta);
 
-        // Display block info
+        int centerX = this.width / 2;
+
+        // Draw header line
+        context.drawCenteredTextWithShadow(
+                this.textRenderer,
+                Text.literal("Info"),
+                centerX,
+                35,
+                0xFFFFFF
+        );
+
+        // Title
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
                 Text.literal("Block: " + blockState.getBlock().getName().getString()),
-                this.width / 2,
-                40,
+                centerX,
+                55,
                 0x00FF00
         );
 
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
                 Text.literal("Position: " + blockPos.getX() + ", " + blockPos.getY() + ", " + blockPos.getZ()),
-                this.width / 2,
-                60,
+                centerX,
+                75,
                 0x00AAFF
-        );
-
-        // Display which property we're editing
-        if (!blockState.getProperties().isEmpty()) {
-            Property<?> firstProperty = blockState.getProperties().iterator().next();
-            context.drawCenteredTextWithShadow(
-                    this.textRenderer,
-                    Text.literal("Editing: " + firstProperty.getName()),
-                    this.width / 2,
-                    centerY - 45,
-                    0x88FF88
-            );
-        }
-
-        // Draw label for text field
-        context.drawTextWithShadow(
-                this.textRenderer,
-                Text.literal("Value:"),
-                this.width / 2 - 100,
-                centerY - 35,
-                0xAAAAAA
         );
     }
 
     private void renderCustomBackground(DrawContext context) {
         context.fill(0, 0, this.width, this.height, 0xB00A0A2A);
-        int borderColor = 0xFF00FF66;
-        context.drawBorder(2, 2, this.width - 4, this.height - 4, borderColor);
     }
 
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        // Override to prevent default dark background
+        // Prevent default background
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Let the text field handle its own key presses first
-        if (this.propertyEditorField.keyPressed(keyCode, scanCode, modifiers)) {
-            return true;
+        // Let each text field handle its own key presses
+        for (PropertyEditor editor : propertyEditors) {
+            if (editor.valueField.keyPressed(keyCode, scanCode, modifiers)) {
+                return true;
+            }
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
