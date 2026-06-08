@@ -49,6 +49,8 @@ public class HackerHandScreen extends Screen {
             propertyEditors.add(editor);
             nextY += 30; // Space between each property
         }
+        // This will have to change in the future - this will be made so that a button, when clicked, cycles through the items
+        // i.e. using an iterating i to switch through the blockstates
 
         // Confirm button
         this.addDrawableChild(ButtonWidget.builder(
@@ -112,7 +114,7 @@ public class HackerHandScreen extends Screen {
                     yPos,
                     fieldWidth,
                     20,
-                    Text.literal("Enter value")
+                    Text.literal("If you see this text, please report as a bug!")
             );
             this.valueField.setText(this.originalValue);
             this.valueField.setPlaceholder(Text.literal("Current: " + this.originalValue));
