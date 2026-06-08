@@ -157,7 +157,7 @@ public class HackerHandScreen extends Screen {
         // Title
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                Text.literal("Block: " + blockState.getBlock().getName().getString()),
+                Text.literal("Block: " + Registries.BLOCK.getId(blockState.getBlock()).toString()),
                 centerX,
                 55,
                 0x00FF00
