@@ -1,5 +1,8 @@
 {
   "item.hackermod.hacker_hand": "H4CK3R's Hand",
 
-  "itemgroup.hackermod.mod_items": "H4CK3R's Items"
+  "itemgroup.hackermod.mod_items": "H4CK3R's Items",
+
+  "key.hackermod.hacker_menu": "Open Command Menu",
+  "category.hackermod": "H4CK3R's Hand"
 }

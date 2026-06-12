@@ -8,15 +8,15 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.vincent.hackermod.HackerMod;
 
-public record BlockUpdatePacket(BlockPos pos, String newBlockId) implements CustomPayload {
-    public static final CustomPayload.Id<BlockUpdatePacket> ID =
-            new CustomPayload.Id<>(Identifier.of(HackerMod.MOD_ID, "block_update"));
+public record EntitySummonPacket(BlockPos pos, String entityId) implements CustomPayload {
+    public static final CustomPayload.Id<EntitySummonPacket> ID =
+            new CustomPayload.Id<>(Identifier.of(HackerMod.MOD_ID, "entity_summon"));
 
-    public static final PacketCodec<RegistryByteBuf, BlockUpdatePacket> CODEC =
+    public static final PacketCodec<RegistryByteBuf, EntitySummonPacket> CODEC =
             PacketCodec.tuple(
-                    BlockPos.PACKET_CODEC, BlockUpdatePacket::pos,
-                    PacketCodecs.STRING, BlockUpdatePacket::newBlockId,
-                    BlockUpdatePacket::new
+                    BlockPos.PACKET_CODEC, EntitySummonPacket::pos,
+                    PacketCodecs.STRING, EntitySummonPacket::entityId,
+                    EntitySummonPacket::new
             );
 
     @Override

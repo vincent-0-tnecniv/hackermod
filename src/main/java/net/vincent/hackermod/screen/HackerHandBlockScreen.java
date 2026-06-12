@@ -7,30 +7,34 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.widget.TextWidget;
+import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.vincent.hackermod.HackerMod;
+import net.vincent.hackermod.networking.BlockStateUpdatePacket;
 import net.vincent.hackermod.networking.BlockUpdatePacket;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class HackerHandScreen extends Screen {
-    public static final Identifier GUI_TEXTURE =
-            Identifier.of(HackerMod.MOD_ID, "textures/gui/hacker_hand/hacker_hand_gui_block.png");
+public class HackerHandBlockScreen extends Screen {
 
     private final BlockPos blockPos;
     private final BlockState blockState;
     private final List<PropertyEditor> propertyEditors = new ArrayList<>();
 
-    private int nextY = 80; // Track Y position for each property
+    // Block ID editing
+    private TextFieldWidget blockIdField;
+    private String originalBlockId;
+    private String newBlockId;
 
-    public HackerHandScreen(BlockPos pos, BlockState state) {
+    public HackerHandBlockScreen(BlockPos pos, BlockState state) {
         super(Text.literal("Block Editor - " + state.getBlock().getName().getString()));
         this.blockPos = pos;
         this.blockState = state;
+        this.originalBlockId = Registries.BLOCK.getId(state.getBlock()).getPath();
+        this.newBlockId = this.originalBlockId;
     }
 
     @Override
@@ -40,25 +44,56 @@ public class HackerHandScreen extends Screen {
         int centerX = this.width / 2;
         int centerY = this.height / 2;
 
-        // Reset Y position
-        nextY = 100;
+        // Block ID editor (top of screen)
+        TextWidget blockIdLabel = new TextWidget(
+                centerX - 100,
+                55,
+                80,
+                20,
+                Text.literal("Block ID:"),
+                this.textRenderer
+        );
+        blockIdLabel.setTextColor(0x00FF00);
 
-        // Create editor for each property
+        this.blockIdField = new TextFieldWidget(
+                this.textRenderer,
+                centerX - 10,
+                55,
+                150,
+                20,
+                Text.literal("Enter block ID")
+        );
+        this.blockIdField.setText(this.originalBlockId);
+        this.blockIdField.setPlaceholder(Text.literal(this.originalBlockId));
+        this.blockIdField.setChangedListener(text -> {
+            this.newBlockId = text;
+        });
+
+        this.addDrawableChild(blockIdLabel);
+        this.addDrawableChild(this.blockIdField);
+
+        // Create property editors for each property
+        int yOffset = 100;
         for (Property<?> property : blockState.getProperties()) {
-            PropertyEditor editor = new PropertyEditor(property, nextY);
+            PropertyEditor editor = new PropertyEditor(property, yOffset, centerX);
             propertyEditors.add(editor);
-            nextY += 30; // Space between each property
+            yOffset += 35;
         }
-        // This will have to change in the future - this will be made so that a button, when clicked, cycles through the items
-        // i.e. using an iterating i to switch through the blockstates
 
         // Confirm button
         this.addDrawableChild(ButtonWidget.builder(
                 Text.literal("Confirm"),
                 button -> {
+                    // Handle Block ID change
+                    if (hasBlockIdChanges()) {
+                        ClientPlayNetworking.send(new BlockUpdatePacket(blockPos, newBlockId));
+                        HackerMod.LOGGER.info("Changing block to: {}", newBlockId);
+                    }
+
+                    // Handle property changes
                     for (PropertyEditor editor : propertyEditors) {
                         if (editor.hasChanges()) {
-                            ClientPlayNetworking.send(new BlockUpdatePacket(
+                            ClientPlayNetworking.send(new BlockStateUpdatePacket(
                                     blockPos,
                                     editor.getPropertyName(),
                                     editor.getNewValue()
@@ -66,6 +101,7 @@ public class HackerHandScreen extends Screen {
                             HackerMod.LOGGER.info("Updating {} to {}", editor.getPropertyName(), editor.getNewValue());
                         }
                     }
+
                     this.close();
                 }
         ).dimensions(centerX + 10, centerY + 50, 100, 20).build());
@@ -77,44 +113,47 @@ public class HackerHandScreen extends Screen {
         ).dimensions(centerX - 110, centerY + 50, 100, 20).build());
     }
 
-    // Inner class to handle each property
+    private boolean hasBlockIdChanges() {
+        return !newBlockId.equals(originalBlockId);
+    }
+
+    // Inner class for editing each property
     private class PropertyEditor {
         private final Property<?> property;
-        private final TextWidget labelWidget;
         private final TextFieldWidget valueField;
-        private String originalValue;
+        private final String originalValue;
         private String newValue;
 
         @SuppressWarnings({"rawtypes", "unchecked"})
-        public PropertyEditor(Property property, int yPos) {
+        public PropertyEditor(Property property, int yPos, int centerX) {
             this.property = property;
             this.originalValue = blockState.get(property).toString();
             this.newValue = this.originalValue;
 
-            int centerX = HackerHandScreen.this.width / 2;
-            int labelWidth = 100;
-            int fieldWidth = 100;
+            int labelWidth = 80;
+            int fieldWidth = 120;
             int spacing = 10;
+            int startX = centerX - (labelWidth + fieldWidth + spacing) / 2;
 
-            // Create label (left side)
-            this.labelWidget = new TextWidget(
-                    centerX - labelWidth - spacing,
+            // Property label
+            TextWidget labelWidget = new TextWidget(
+                    startX,
                     yPos,
                     labelWidth,
                     20,
                     Text.literal(property.getName() + ":"),
-                    HackerHandScreen.this.textRenderer
+                    HackerHandBlockScreen.this.textRenderer
             );
-            this.labelWidget.setTextColor(0x00FF00); // Neon green color
+            labelWidget.setTextColor(0x00FF00);
 
-            // Create text field (right side)
+            // Property value text field (EDITABLE)
             this.valueField = new TextFieldWidget(
-                    HackerHandScreen.this.textRenderer,
-                    centerX + spacing,
+                    HackerHandBlockScreen.this.textRenderer,
+                    startX + labelWidth + spacing,
                     yPos,
                     fieldWidth,
                     20,
-                    Text.literal("If you see this text, please report as a bug!")
+                    Text.literal("Enter value")
             );
             this.valueField.setText(this.originalValue);
             this.valueField.setPlaceholder(Text.literal("Current: " + this.originalValue));
@@ -122,9 +161,27 @@ public class HackerHandScreen extends Screen {
                 this.newValue = text;
             });
 
-            // Add to screen
-            HackerHandScreen.this.addDrawableChild(this.labelWidget);
-            HackerHandScreen.this.addDrawableChild(this.valueField);
+            // Show valid values hint
+            String hint;
+            if (property.getType() == Boolean.class) {
+                hint = "true/false";
+            } else {
+                hint = property.getValues().toString();
+            }
+
+            TextWidget hintWidget = new TextWidget(
+                    startX + labelWidth + spacing + fieldWidth + 5,
+                    yPos,
+                    150,
+                    20,
+                    Text.literal("Valid: " + hint),
+                    HackerHandBlockScreen.this.textRenderer
+            );
+            hintWidget.setTextColor(0x888888);
+
+            HackerHandBlockScreen.this.addDrawableChild(labelWidget);
+            HackerHandBlockScreen.this.addDrawableChild(this.valueField);
+            HackerHandBlockScreen.this.addDrawableChild(hintWidget);
         }
 
         public String getPropertyName() {
@@ -147,21 +204,12 @@ public class HackerHandScreen extends Screen {
 
         int centerX = this.width / 2;
 
-        // Draw header line
+        // Draw header
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
-                Text.literal("Info"),
+                Text.literal("Block Editor"),
                 centerX,
-                35,
-                0xFFFFFF
-        );
-
-        // Title
-        context.drawCenteredTextWithShadow(
-                this.textRenderer,
-                Text.literal("Block: " + blockState.getBlock().getName().getString()),
-                centerX,
-                55,
+                30,
                 0x00FF00
         );
 
@@ -169,7 +217,7 @@ public class HackerHandScreen extends Screen {
                 this.textRenderer,
                 Text.literal("Position: " + blockPos.getX() + ", " + blockPos.getY() + ", " + blockPos.getZ()),
                 centerX,
-                75,
+                45,
                 0x00AAFF
         );
     }
@@ -185,12 +233,20 @@ public class HackerHandScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Let each text field handle its own key presses
+        // Let text fields handle their own key presses
+        if (this.blockIdField.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
         for (PropertyEditor editor : propertyEditors) {
             if (editor.valueField.keyPressed(keyCode, scanCode, modifiers)) {
                 return true;
             }
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean shouldPause() {
+        return true;
     }
 }
