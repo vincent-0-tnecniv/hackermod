@@ -3,6 +3,13 @@ plugins {
 	id 'maven-publish'
 }
 
+loom {
+	// This is important for mixins
+	mixin {
+		defaultRefmapName.set("hackermod.refmap.json")
+	}
+}
+
 version = project.mod_version
 group = project.maven_group
 

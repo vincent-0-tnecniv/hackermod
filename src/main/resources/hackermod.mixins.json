@@ -3,6 +3,7 @@
 	"package": "net.vincent.hackermod.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"PlayerFallDamageMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

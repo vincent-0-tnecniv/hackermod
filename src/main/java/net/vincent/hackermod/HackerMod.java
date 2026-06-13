@@ -1,6 +1,7 @@
 package net.vincent.hackermod;
 
 import net.fabricmc.api.ModInitializer;
+import net.vincent.hackermod.events.ModEvents;
 import net.vincent.hackermod.item.ModItemGroups;
 import net.vincent.hackermod.item.ModItems;
 import net.vincent.hackermod.keybind.ModItemKeyBindings;
@@ -20,5 +21,6 @@ public class HackerMod implements ModInitializer {
 		ModItemGroups.registerModItemGroups();
 		ModKeybindings.registerKeys();
 		ModItemKeyBindings.registerItemKeyBindings();
+		ModEvents.registerEvents();
 	}
 }

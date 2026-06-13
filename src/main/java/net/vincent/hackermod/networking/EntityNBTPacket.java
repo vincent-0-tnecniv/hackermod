@@ -5,19 +5,19 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
 import net.vincent.hackermod.HackerMod;
 
-public record EntityUpdatePacket(int entityId, String nbtPath, String nbtValue) implements CustomPayload {
-    public static final CustomPayload.Id<EntityUpdatePacket> ID =
+public record EntityNBTPacket(int entityId, double x, double y, double z) implements CustomPayload {
+    public static final CustomPayload.Id<EntityNBTPacket> ID =
             new CustomPayload.Id<>(Identifier.of(HackerMod.MOD_ID, "entity_update"));
 
-    public static final PacketCodec<RegistryByteBuf, EntityUpdatePacket> CODEC =
+    public static final PacketCodec<RegistryByteBuf, EntityNBTPacket> CODEC =
             PacketCodec.tuple(
-                    PacketCodecs.INTEGER, EntityUpdatePacket::entityId,
-                    PacketCodecs.STRING, EntityUpdatePacket::nbtPath,
-                    PacketCodecs.STRING, EntityUpdatePacket::nbtValue,
-                    EntityUpdatePacket::new
+                    PacketCodecs.INTEGER, EntityNBTPacket::entityId,
+                    PacketCodecs.DOUBLE, EntityNBTPacket::x,
+                    PacketCodecs.DOUBLE, EntityNBTPacket::y,
+                    PacketCodecs.DOUBLE, EntityNBTPacket::z,
+                    EntityNBTPacket::new
             );
 
     @Override

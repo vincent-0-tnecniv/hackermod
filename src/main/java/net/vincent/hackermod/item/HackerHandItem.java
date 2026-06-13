@@ -1,11 +1,11 @@
 package net.vincent.hackermod.item;
 
-import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.hit.BlockHitResult;
@@ -14,10 +14,8 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.vincent.hackermod.screen.HackerHandBlockScreen;
-import net.vincent.hackermod.screen.HackerHandEntityScreen;
+import net.vincent.hackermod.screen.HackerHandEntityNBTScreen;
 import net.vincent.hackermod.screen.HackerHandSummonScreen;
-
-import java.util.Optional;
 
 public class HackerHandItem extends Item {
 
@@ -49,27 +47,24 @@ public class HackerHandItem extends Item {
 //    }
 
     @Override
-    public TypedActionResult<ItemStack> use(World world, PlayerEntity player, net.minecraft.util.Hand hand) {
+    public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
         if (world.isClient) {
             // Check for entity first
             Entity targetEntity = getTargetEntity(player, 100.0);
 
             if (targetEntity != null && !player.isSneaking()) {
-                // Open entity editor
-                MinecraftClient.getInstance().setScreen(new HackerHandEntityScreen(targetEntity));
+                // Standing and clicking on entity - open NBT editor
+                MinecraftClient.getInstance().setScreen(new HackerHandEntityNBTScreen(targetEntity, world));
                 return TypedActionResult.success(player.getStackInHand(hand));
-            }
-
-            // If no entity or sneaking, check for block
-            HitResult hit = player.raycast(500.0, 1.0F, false);
-            if (hit.getType() == HitResult.Type.BLOCK) {
-                BlockHitResult blockHit = (BlockHitResult) hit;
-                if (player.isSneaking()) {
-                    MinecraftClient.getInstance().setScreen(
-                            new HackerHandSummonScreen(blockHit.getBlockPos())
-                    );
-                    return TypedActionResult.success(player.getStackInHand(hand));
-                } else {
+            } else if(targetEntity != null && player.isSneaking()){
+                // TODO: Sneaking and clicking on entity - open attribute editor
+                // MinecraftClient.getInstance().setScreen(new HackerHandEntityAttributeScreen(targetEntity, world));
+                return TypedActionResult.success(player.getStackInHand(hand));
+            } else{
+                // No entity in front - open block editor
+                HitResult hit = player.raycast(500.0, 1.0F, false);
+                if (hit.getType() == HitResult.Type.BLOCK) {
+                    BlockHitResult blockHit = (BlockHitResult) hit;
                     MinecraftClient.getInstance().setScreen(
                             new HackerHandBlockScreen(blockHit.getBlockPos(), world.getBlockState(blockHit.getBlockPos()))
                     );
@@ -78,6 +73,21 @@ public class HackerHandItem extends Item {
             }
         }
         return TypedActionResult.pass(player.getStackInHand(hand));
+    }
+
+    // In your HackerHandItem.java or a command handler
+    public static void toggleCreativeFlight(PlayerEntity player) {
+        if (player.getAbilities().allowFlying) {
+            // Disable flight
+            player.getAbilities().allowFlying = false;
+            player.getAbilities().flying = false;
+            player.sendMessage(Text.literal("§cFlight disabled"), true);
+        } else {
+            // Enable flight
+            player.getAbilities().allowFlying = true;
+            player.sendMessage(Text.literal("§aFlight enabled! Press jump twice to fly"), true);
+        }
+        player.sendAbilitiesUpdate();
     }
 
     private Entity getTargetEntity(PlayerEntity player, double range) {

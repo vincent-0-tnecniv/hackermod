@@ -3,6 +3,8 @@
 
   "itemgroup.hackermod.mod_items": "H4CK3R's Items",
 
-  "key.hackermod.hacker_menu": "Open Command Menu",
-  "category.hackermod": "H4CK3R's Hand"
+  "key.hackermod.command_menu": "Open Command Menu",
+  "key.hackermod.summon_menu": "Summon Menu",
+  "key.hackermod.fly_toggle": "Toggle Flight",
+  "category.hackermod": "H4CK3R's Mod"
 }

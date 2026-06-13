@@ -59,6 +59,12 @@ public class HackerHandSummonScreen extends Screen {
         );
         this.entityIdField.setPlaceholder(Text.literal(""));
         this.entityIdField.setText("");
+        this.entityIdField.setChangedListener(text -> {
+            if(!text.contains(":")){
+                this.entityIdField.setText("minecraft:" + text);
+            }
+        });
+        // In case users did not enter the prefix "minecraft:"
 
         // Summon button
         this.addDrawableChild(ButtonWidget.builder(

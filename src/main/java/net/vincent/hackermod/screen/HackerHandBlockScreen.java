@@ -63,7 +63,7 @@ public class HackerHandBlockScreen extends Screen {
                 55,
                 80,
                 20,
-                Text.literal("Block ID:"),
+                Text.literal("Block ID: "),
                 this.textRenderer
         );
         blockIdLabel.setTextColor(0x00AAFF);
@@ -99,7 +99,7 @@ public class HackerHandBlockScreen extends Screen {
                 this.textRenderer,
                 centerX - 10,
                 75,
-                25,
+                40,
                 20,
                 Text.literal(String.valueOf(blockPos.getX()))
         );
@@ -115,9 +115,9 @@ public class HackerHandBlockScreen extends Screen {
 
         this.yField = new TextFieldWidget(
                 this.textRenderer,
-                centerX + 15,
+                centerX + 30,
                 75,
-                25,
+                40,
                 20,
                 Text.literal(String.valueOf(blockPos.getY()))
         );
@@ -133,9 +133,9 @@ public class HackerHandBlockScreen extends Screen {
 
         this.zField = new TextFieldWidget(
                 this.textRenderer,
-                centerX + 40,
+                centerX + 70,
                 75,
-                25,
+                40,
                 20,
                 Text.literal(String.valueOf(blockPos.getZ()))
         );

@@ -4,15 +4,16 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.vincent.hackermod.HackerMod;
 
 public class ModPackets {
@@ -42,6 +43,7 @@ public class ModPackets {
                 }
             });
         });
+        HackerMod.LOGGER.info("Registered Block Property Packets!");
 
         PayloadTypeRegistry.playC2S().register(BlockUpdatePacket.ID, BlockUpdatePacket.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(BlockUpdatePacket.ID, (packet, context) -> {
@@ -66,6 +68,7 @@ public class ModPackets {
                 }
             });
         });
+        HackerMod.LOGGER.info("Registered General Block Packets!");
 
         PayloadTypeRegistry.playC2S().register(EntitySummonPacket.ID, EntitySummonPacket.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(EntitySummonPacket.ID, (packet, context) -> {
@@ -105,6 +108,7 @@ public class ModPackets {
                 }
             });
         });
+        HackerMod.LOGGER.info("Registered Entity Summon Packets!");
 
         PayloadTypeRegistry.playC2S().register(CommandPacket.ID, CommandPacket.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(CommandPacket.ID, (packet, context) -> {
@@ -115,36 +119,97 @@ public class ModPackets {
                 );
             });
         });
+        HackerMod.LOGGER.info("Registered Command Packets!");
 
-        PayloadTypeRegistry.playC2S().register(EntityUpdatePacket.ID, EntityUpdatePacket.CODEC);
-        ServerPlayNetworking.registerGlobalReceiver(EntityUpdatePacket.ID, (packet, context) -> {
+        PayloadTypeRegistry.playC2S().register(EntityNBTPacket.ID, EntityNBTPacket.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(EntityNBTPacket.ID, (packet, context) -> {
             context.server().execute(() -> {
                 var world = context.player().getWorld();
                 var entity = world.getEntityById(packet.entityId());
-
                 if (entity != null) {
-                    // Get current NBT
-                    NbtCompound nbt = new NbtCompound();
-                    entity.saveNbt(nbt);
-
-                    // Apply the change
-                    setNbtValueFromString(nbt, packet.nbtPath(), packet.nbtValue());
-
-                    // Write back to entity
-                    entity.readNbt(nbt);
-
-                    context.player().sendMessage(
-                            Text.literal("§aUpdated " + packet.nbtPath() + " to " + packet.nbtValue()),
-                            true
-                    );
-
-                    HackerMod.LOGGER.info("Entity {} updated: {} = {}",
-                            entity.getId(), packet.nbtPath(), packet.nbtValue());
+                    entity.setPos(packet.x(), packet.y(), packet.z());
                 }
             });
         });
+        HackerMod.LOGGER.info("Registered Entity NBT Packets!");
 
-        HackerMod.LOGGER.info("Registering Packets for " + HackerMod.MOD_ID);
+        PayloadTypeRegistry.playC2S().register(FlightUpdatePacket.ID, FlightUpdatePacket.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(FlightUpdatePacket.ID, (packet, context) -> {
+            context.server().execute(() -> {
+                ServerPlayerEntity player = context.player();
+
+                player.getAbilities().allowFlying = packet.enableFlight();
+                if (packet.enableFlight()) {
+                    player.getAbilities().flying = true;
+                    player.fallDistance = 0;
+                } else {
+                    player.getAbilities().flying = false;
+                }
+                player.sendAbilitiesUpdate();
+            });
+        });
+        HackerMod.LOGGER.info("Registered Flight Toggle Packets!");
+
+        // Entity Transform Packet (server-side spawning)
+        PayloadTypeRegistry.playC2S().register(EntityTransformPacket.ID, EntityTransformPacket.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(EntityTransformPacket.ID, (packet, context) -> {
+            context.server().execute(() -> {
+                var world = context.player().getWorld();
+                var oldEntity = world.getEntityById(packet.oldEntityId());
+
+                // Remove old entity
+                if (oldEntity != null) {
+                    oldEntity.discard();
+                }
+
+                // Get new entity type
+                Identifier entityId = packet.newEntityType().contains(":") ?
+                        Identifier.of(packet.newEntityType()) :
+                        Identifier.of("minecraft", packet.newEntityType());
+
+                EntityType<?> entityType = Registries.ENTITY_TYPE.get(entityId);
+
+                if (entityType == null) {
+                    context.player().sendMessage(Text.literal("§cInvalid entity type: " + packet.newEntityType()), true);
+                    return;
+                }
+
+                // Create new entity
+                Entity newEntity = entityType.create(world);
+                if (newEntity == null) {
+                    context.player().sendMessage(Text.literal("§cFailed to create entity"), true);
+                    return;
+                }
+
+                // Set position and rotation
+                newEntity.setPosition(packet.x(), packet.y(), packet.z());
+                newEntity.setYaw(packet.yaw());
+                newEntity.setPitch(packet.pitch());
+
+                // Copy custom name from old entity if it existed
+                if (oldEntity != null && oldEntity.hasCustomName()) {
+                    newEntity.setCustomName(oldEntity.getCustomName());
+                    newEntity.setCustomNameVisible(oldEntity.isCustomNameVisible());
+                }
+
+                // Spawn the entity
+                boolean spawned = world.spawnEntity(newEntity);
+
+                if (spawned) {
+                    context.player().sendMessage(
+                            Text.literal("§aTransformed entity to " + packet.newEntityType()),
+                            true
+                    );
+                    HackerMod.LOGGER.info("Successfully spawned: {}", packet.newEntityType());
+                } else {
+                    context.player().sendMessage(Text.literal("§cFailed to spawn entity (block collision?)"), true);
+                    HackerMod.LOGGER.error("Failed to spawn entity: {}", packet.newEntityType());
+                }
+            });
+        });
+        HackerMod.LOGGER.info("Registered Entity Transformation Packets!");
+
+        HackerMod.LOGGER.info("Registered Packets for " + HackerMod.MOD_ID);
     }
 
     private static void setNbtValueFromString(NbtCompound nbt, String key, String valueStr) {
