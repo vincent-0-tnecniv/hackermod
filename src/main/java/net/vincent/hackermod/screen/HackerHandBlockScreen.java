@@ -20,14 +20,21 @@ import java.util.List;
 
 public class HackerHandBlockScreen extends Screen {
 
-    private final BlockPos blockPos;
+    private BlockPos blockPos;
     private final BlockState blockState;
+
     private final List<PropertyEditor> propertyEditors = new ArrayList<>();
 
     // Block ID editing
     private TextFieldWidget blockIdField;
-    private String originalBlockId;
+    private final String originalBlockId;
     private String newBlockId;
+
+    private TextFieldWidget xField;
+    private TextFieldWidget yField;
+    private TextFieldWidget zField;
+    private final int ox, oy, oz;
+    private int nx, ny, nz;
 
     public HackerHandBlockScreen(BlockPos pos, BlockState state) {
         super(Text.literal("Block Editor - " + state.getBlock().getName().getString()));
@@ -35,6 +42,12 @@ public class HackerHandBlockScreen extends Screen {
         this.blockState = state;
         this.originalBlockId = Registries.BLOCK.getId(state.getBlock()).getPath();
         this.newBlockId = this.originalBlockId;
+        this.ox = pos.getX();
+        this.oy = pos.getY();
+        this.oz = pos.getZ();
+        this.nx = this.ox;
+        this.ny = this.oy;
+        this.nz = this.oz;
     }
 
     @Override
@@ -44,7 +57,7 @@ public class HackerHandBlockScreen extends Screen {
         int centerX = this.width / 2;
         int centerY = this.height / 2;
 
-        // Block ID editor (top of screen)
+        // Block ID editor
         TextWidget blockIdLabel = new TextWidget(
                 centerX - 100,
                 55,
@@ -53,7 +66,7 @@ public class HackerHandBlockScreen extends Screen {
                 Text.literal("Block ID:"),
                 this.textRenderer
         );
-        blockIdLabel.setTextColor(0x00FF00);
+        blockIdLabel.setTextColor(0x00AAFF);
 
         this.blockIdField = new TextFieldWidget(
                 this.textRenderer,
@@ -65,12 +78,81 @@ public class HackerHandBlockScreen extends Screen {
         );
         this.blockIdField.setText(this.originalBlockId);
         this.blockIdField.setPlaceholder(Text.literal(this.originalBlockId));
-        this.blockIdField.setChangedListener(text -> {
-            this.newBlockId = text;
-        });
+        this.blockIdField.setChangedListener(text -> this.newBlockId = text);
 
         this.addDrawableChild(blockIdLabel);
         this.addDrawableChild(this.blockIdField);
+
+        // Block Position editor
+        TextWidget positionLabel = new TextWidget(
+                centerX - 100,
+                75,
+                80,
+                20,
+                Text.literal("Position: "),
+                this.textRenderer
+        );
+        positionLabel.setTextColor(0x00AAFF);
+
+        // x, y, and z position fields (they look the same)
+        this.xField = new TextFieldWidget(
+                this.textRenderer,
+                centerX - 10,
+                75,
+                25,
+                20,
+                Text.literal(String.valueOf(blockPos.getX()))
+        );
+        this.xField.setText(String.valueOf(this.ox));
+        this.xField.setPlaceholder(Text.of(String.valueOf(this.ox)));
+        this.xField.setChangedListener(text -> {
+            try{
+                this.nx = Integer.parseInt(text);
+            } catch (Exception e) {
+                this.nx = this.ox;
+            }
+        });
+
+        this.yField = new TextFieldWidget(
+                this.textRenderer,
+                centerX + 15,
+                75,
+                25,
+                20,
+                Text.literal(String.valueOf(blockPos.getY()))
+        );
+        this.yField.setText(String.valueOf(this.oy));
+        this.yField.setPlaceholder(Text.of(String.valueOf(this.oy)));
+        this.yField.setChangedListener(text -> {
+            try{
+                this.ny = Integer.parseInt(text);
+            } catch (Exception e) {
+                this.ny = this.oy;
+            }
+        });
+
+        this.zField = new TextFieldWidget(
+                this.textRenderer,
+                centerX + 40,
+                75,
+                25,
+                20,
+                Text.literal(String.valueOf(blockPos.getZ()))
+        );
+        this.zField.setText(String.valueOf(this.oz));
+        this.zField.setPlaceholder(Text.of(String.valueOf(this.oz)));
+        this.zField.setChangedListener(text -> {
+            try{
+                this.nz = Integer.parseInt(text);
+            } catch (Exception e) {
+                this.nz = this.oz;
+            }
+        });
+
+        this.addDrawableChild(positionLabel);
+        this.addDrawableChild(this.xField);
+        this.addDrawableChild(this.yField);
+        this.addDrawableChild(this.zField);
 
         // Create property editors for each property
         int yOffset = 100;
@@ -84,6 +166,14 @@ public class HackerHandBlockScreen extends Screen {
         this.addDrawableChild(ButtonWidget.builder(
                 Text.literal("Confirm"),
                 button -> {
+
+                    // Handle Block Position change
+                    if(hasXChanges() || hasYChanges() || hasZChanges()){
+                        ClientPlayNetworking.send(new BlockUpdatePacket(blockPos, "minecraft:air"));
+                        blockPos = new BlockPos(nx, ny, nz);
+                        ClientPlayNetworking.send(new BlockUpdatePacket(blockPos, newBlockId));
+                    }
+
                     // Handle Block ID change
                     if (hasBlockIdChanges()) {
                         ClientPlayNetworking.send(new BlockUpdatePacket(blockPos, newBlockId));
@@ -111,6 +201,18 @@ public class HackerHandBlockScreen extends Screen {
                 Text.literal("Cancel"),
                 button -> this.close()
         ).dimensions(centerX - 110, centerY + 50, 100, 20).build());
+    }
+
+    private boolean hasZChanges() {
+        return nz!=oz;
+    }
+
+    private boolean hasYChanges() {
+        return ny!=oy;
+    }
+
+    private boolean hasXChanges() {
+        return nx!=ox;
     }
 
     private boolean hasBlockIdChanges() {
@@ -157,9 +259,7 @@ public class HackerHandBlockScreen extends Screen {
             );
             this.valueField.setText(this.originalValue);
             this.valueField.setPlaceholder(Text.literal("Current: " + this.originalValue));
-            this.valueField.setChangedListener(text -> {
-                this.newValue = text;
-            });
+            this.valueField.setChangedListener(text -> this.newValue = text);
 
             // Show valid values hint
             String hint;
@@ -212,14 +312,6 @@ public class HackerHandBlockScreen extends Screen {
                 30,
                 0x00FF00
         );
-
-        context.drawCenteredTextWithShadow(
-                this.textRenderer,
-                Text.literal("Position: " + blockPos.getX() + ", " + blockPos.getY() + ", " + blockPos.getZ()),
-                centerX,
-                45,
-                0x00AAFF
-        );
     }
 
     private void renderCustomBackground(DrawContext context) {
@@ -235,6 +327,15 @@ public class HackerHandBlockScreen extends Screen {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         // Let text fields handle their own key presses
         if (this.blockIdField.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        if(this.xField.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        if(this.yField.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        if(this.zField.keyPressed(keyCode, scanCode, modifiers)) {
             return true;
         }
         for (PropertyEditor editor : propertyEditors) {

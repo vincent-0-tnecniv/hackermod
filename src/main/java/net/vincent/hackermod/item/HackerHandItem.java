@@ -1,19 +1,23 @@
 package net.vincent.hackermod.item;
 
+import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUsageContext;
-import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.vincent.hackermod.screen.HackerHandBlockScreen;
+import net.vincent.hackermod.screen.HackerHandEntityScreen;
 import net.vincent.hackermod.screen.HackerHandSummonScreen;
+
+import java.util.Optional;
 
 public class HackerHandItem extends Item {
 
@@ -23,28 +27,88 @@ public class HackerHandItem extends Item {
         super(settings);
     }
 
-    @Override
-    public boolean postHit(ItemStack stack, LivingEntity target, LivingEntity attacker) {
-        return super.postHit(stack, target, attacker);
-    }
-
     // In your HackerHandItem.java
+//    @Override
+//    public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
+//        if (world.isClient) {
+//            HitResult hit = player.raycast(MAX_RANGE, 1.0F, true);
+//            BlockHitResult blockHit = (BlockHitResult) hit;
+//            if (player.isSneaking()) {
+//                MinecraftClient.getInstance().setScreen(
+//                        new HackerHandSummonScreen(blockHit.getBlockPos())
+//                );
+//                return TypedActionResult.success(player.getStackInHand(hand));
+//            } else {
+//                MinecraftClient.getInstance().setScreen(
+//                        new HackerHandBlockScreen(blockHit.getBlockPos(), world.getBlockState(blockHit.getBlockPos()))
+//                );
+//                return TypedActionResult.success(player.getStackInHand(hand));
+//            }
+//        }
+//        return TypedActionResult.pass(player.getStackInHand(hand));
+//    }
+
     @Override
-    public TypedActionResult<ItemStack> use(World world, PlayerEntity player, Hand hand) {
+    public TypedActionResult<ItemStack> use(World world, PlayerEntity player, net.minecraft.util.Hand hand) {
         if (world.isClient) {
-            BlockHitResult hit = (BlockHitResult) player.raycast(MAX_RANGE, 1.0F, true);
-            if (player.isSneaking()) {
-                MinecraftClient.getInstance().setScreen(
-                        new HackerHandSummonScreen(hit.getBlockPos())
-                );
+            // Check for entity first
+            Entity targetEntity = getTargetEntity(player, 100.0);
+
+            if (targetEntity != null && !player.isSneaking()) {
+                // Open entity editor
+                MinecraftClient.getInstance().setScreen(new HackerHandEntityScreen(targetEntity));
                 return TypedActionResult.success(player.getStackInHand(hand));
-            } else {
-                MinecraftClient.getInstance().setScreen(
-                        new HackerHandBlockScreen(hit.getBlockPos(), world.getBlockState(hit.getBlockPos()))
-                );
-                return TypedActionResult.success(player.getStackInHand(hand));
+            }
+
+            // If no entity or sneaking, check for block
+            HitResult hit = player.raycast(500.0, 1.0F, false);
+            if (hit.getType() == HitResult.Type.BLOCK) {
+                BlockHitResult blockHit = (BlockHitResult) hit;
+                if (player.isSneaking()) {
+                    MinecraftClient.getInstance().setScreen(
+                            new HackerHandSummonScreen(blockHit.getBlockPos())
+                    );
+                    return TypedActionResult.success(player.getStackInHand(hand));
+                } else {
+                    MinecraftClient.getInstance().setScreen(
+                            new HackerHandBlockScreen(blockHit.getBlockPos(), world.getBlockState(blockHit.getBlockPos()))
+                    );
+                    return TypedActionResult.success(player.getStackInHand(hand));
+                }
             }
         }
         return TypedActionResult.pass(player.getStackInHand(hand));
+    }
+
+    private Entity getTargetEntity(PlayerEntity player, double range) {
+        // Raycast for entities
+        Vec3d cameraPos = player.getCameraPosVec(1.0F);
+        Vec3d rotation = player.getRotationVec(1.0F);
+        Vec3d endPos = cameraPos.add(rotation.x * range, rotation.y * range, rotation.z * range);
+
+        // Create a bounding box along the ray
+        Box searchBox = player.getBoundingBox().stretch(rotation.multiply(range)).expand(2.0);
+
+        Entity closestEntity = null;
+        double closestDistance = range;
+
+        for (Entity entity : player.getWorld().getOtherEntities(player, searchBox,
+                e -> !e.isSpectator() && e.isAlive())) {
+            Box entityBox = entity.getBoundingBox().expand(0.3);
+
+            // Handle Optional correctly
+            java.util.Optional<Vec3d> intersectionOpt = entityBox.raycast(cameraPos, endPos);
+
+            if (intersectionOpt.isPresent()) {
+                Vec3d intersection = intersectionOpt.get();
+                double distance = cameraPos.distanceTo(intersection);
+                if (distance < closestDistance) {
+                    closestEntity = entity;
+                    closestDistance = distance;
+                }
+            }
+        }
+
+        return closestEntity;
     }
 }

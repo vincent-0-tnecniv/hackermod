@@ -7,6 +7,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
@@ -42,7 +43,6 @@ public class ModPackets {
             });
         });
 
-        // 2. Block Update Packet (change entire block)
         PayloadTypeRegistry.playC2S().register(BlockUpdatePacket.ID, BlockUpdatePacket.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(BlockUpdatePacket.ID, (packet, context) -> {
             context.server().execute(() -> {
@@ -67,7 +67,6 @@ public class ModPackets {
             });
         });
 
-        // 3. Entity Summon Packet
         PayloadTypeRegistry.playC2S().register(EntitySummonPacket.ID, EntitySummonPacket.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(EntitySummonPacket.ID, (packet, context) -> {
             context.server().execute(() -> {
@@ -117,7 +116,57 @@ public class ModPackets {
             });
         });
 
+        PayloadTypeRegistry.playC2S().register(EntityUpdatePacket.ID, EntityUpdatePacket.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(EntityUpdatePacket.ID, (packet, context) -> {
+            context.server().execute(() -> {
+                var world = context.player().getWorld();
+                var entity = world.getEntityById(packet.entityId());
+
+                if (entity != null) {
+                    // Get current NBT
+                    NbtCompound nbt = new NbtCompound();
+                    entity.saveNbt(nbt);
+
+                    // Apply the change
+                    setNbtValueFromString(nbt, packet.nbtPath(), packet.nbtValue());
+
+                    // Write back to entity
+                    entity.readNbt(nbt);
+
+                    context.player().sendMessage(
+                            Text.literal("§aUpdated " + packet.nbtPath() + " to " + packet.nbtValue()),
+                            true
+                    );
+
+                    HackerMod.LOGGER.info("Entity {} updated: {} = {}",
+                            entity.getId(), packet.nbtPath(), packet.nbtValue());
+                }
+            });
+        });
+
         HackerMod.LOGGER.info("Registering Packets for " + HackerMod.MOD_ID);
+    }
+
+    private static void setNbtValueFromString(NbtCompound nbt, String key, String valueStr) {
+        if (nbt.contains(key)) {
+            byte type = nbt.getType(key);
+            try {
+                switch (type) {
+                    case 1: nbt.putBoolean(key, Boolean.parseBoolean(valueStr)); break;
+                    case 2: nbt.putByte(key, Byte.parseByte(valueStr)); break;
+                    case 3: nbt.putShort(key, Short.parseShort(valueStr)); break;
+                    case 4: nbt.putInt(key, Integer.parseInt(valueStr)); break;
+                    case 5: nbt.putLong(key, Long.parseLong(valueStr)); break;
+                    case 6: nbt.putFloat(key, Float.parseFloat(valueStr)); break;
+                    case 7: nbt.putDouble(key, Double.parseDouble(valueStr)); break;
+                    default: nbt.putString(key, valueStr);
+                }
+            } catch (NumberFormatException e) {
+                nbt.putString(key, valueStr);
+            }
+        } else {
+            nbt.putString(key, valueStr);
+        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
