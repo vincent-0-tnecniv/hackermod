@@ -144,8 +144,6 @@ public class ModPackets {
                 Entity entity = world.getEntityById(packet.entityId());
 
                 if (entity != null) {
-                    HackerMod.LOGGER.info("SERVER: Updating entity {} - {} = {}",
-                            packet.entityId(), packet.key(), packet.value());
 
                     // Apply the change
                     NbtCompound nbt = new NbtCompound();
@@ -156,9 +154,6 @@ public class ModPackets {
                     // Create sync packet with updated NBT
                     NbtCompound syncNbt = new NbtCompound();
                     entity.writeNbt(syncNbt);
-
-                    HackerMod.LOGGER.info("SERVER: Sending sync packet to client - Invulnerable: {}",
-                            syncNbt.getBoolean("Invulnerable"));
 
                     // Send back to the client
                     ServerPlayNetworking.send(context.player(), new EntitySyncPacket(entity.getId(), syncNbt));

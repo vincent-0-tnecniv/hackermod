@@ -211,7 +211,6 @@ public class HackerHandEntityNBTScreen extends Screen {
                                     editor.getValueAsString(),
                                     editor.getDataType()
                             ));
-                            HackerMod.LOGGER.info("Updating NBT: {} = {}", editor.getName(), editor.getValueAsString());
                             hasNbtChanges = true;
                         }
                     }
@@ -265,8 +264,6 @@ public class HackerHandEntityNBTScreen extends Screen {
         this.xField.setText(String.valueOf(round(this.nx, 2)));
         this.yField.setText(String.valueOf(round(this.ny, 2)));
         this.zField.setText(String.valueOf(round(this.nz, 2)));
-
-        HackerMod.LOGGER.info("Screen refreshed with latest entity data");
     }
 
     private boolean isTypeEditable(byte type) {
