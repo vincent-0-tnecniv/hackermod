@@ -46,29 +46,29 @@ public class HackerHandEntityAttributeScreen extends Screen {
         int centerY = this.height / 2;
 
         // Entity ID editor - this is not an actual editor, but a "discard and replace"
-        TextWidget entityIdLabel = new TextWidget(
-                centerX - 100,
-                55,
-                80,
-                20,
-                Text.literal("Entity ID: "),
-                this.textRenderer
-        );
-        entityIdLabel.setTextColor(0x00AAFF);
+//        TextWidget entityIdLabel = new TextWidget(
+//                centerX - 100,
+//                55,
+//                80,
+//                20,
+//                Text.literal("Entity ID: "),
+//                this.textRenderer
+//        );
+//        entityIdLabel.setTextColor(0x00AAFF);
 
-        this.entityIdField = new TextFieldWidget(
-                this.textRenderer,
-                centerX - 10,
-                55,
-                150,
-                20,
-                Text.literal("Enter entity ID")
-        );
-        this.entityIdField.setText(this.originalEntityId);
-        this.entityIdField.setPlaceholder(Text.literal(this.originalEntityId));
-        this.entityIdField.setChangedListener(text -> this.newEntityId = text);
+//        this.entityIdField = new TextFieldWidget(
+//                this.textRenderer,
+//                centerX - 10,
+//                55,
+//                150,
+//                20,
+//                Text.literal("Enter entity ID")
+//        );
+//        this.entityIdField.setText(this.originalEntityId);
+//        this.entityIdField.setPlaceholder(Text.literal(this.originalEntityId));
+//        this.entityIdField.setChangedListener(text -> this.newEntityId = text);
 
-        this.addDrawableChild(entityIdLabel);
+//        this.addDrawableChild(entityIdLabel);
         this.addDrawableChild(this.entityIdField);
 
         // Block Position editor
@@ -83,64 +83,64 @@ public class HackerHandEntityAttributeScreen extends Screen {
         positionLabel.setTextColor(0x00AAFF);
 
         // x, y, and z position fields (they look the same)
-        this.xField = new TextFieldWidget(
-                this.textRenderer,
-                centerX - 10,
-                75,
-                25,
-                20,
-                Text.literal(String.valueOf(ox))
-        );
-        this.xField.setText(String.valueOf(this.ox));
-        this.xField.setPlaceholder(Text.of(String.valueOf(this.ox)));
-        this.xField.setChangedListener(text -> {
-            try{
-                this.nx = Double.parseDouble(text);
-            } catch (Exception e) {
-                this.nx = this.ox;
-            }
-        });
-
-        this.yField = new TextFieldWidget(
-                this.textRenderer,
-                centerX + 15,
-                75,
-                25,
-                20,
-                Text.literal(String.valueOf(oy))
-        );
-        this.yField.setText(String.valueOf(this.oy));
-        this.yField.setPlaceholder(Text.of(String.valueOf(this.oy)));
-        this.yField.setChangedListener(text -> {
-            try{
-                this.ny = Double.parseDouble(text);
-            } catch (Exception e) {
-                this.ny = this.oy;
-            }
-        });
-
-        this.zField = new TextFieldWidget(
-                this.textRenderer,
-                centerX + 40,
-                75,
-                25,
-                20,
-                Text.literal(String.valueOf(oz))
-        );
-        this.zField.setText(String.valueOf(this.oz));
-        this.zField.setPlaceholder(Text.of(String.valueOf(this.oz)));
-        this.zField.setChangedListener(text -> {
-            try{
-                this.nz = Double.parseDouble(text);
-            } catch (Exception e) {
-                this.nz = this.oz;
-            }
-        });
-
-        this.addDrawableChild(positionLabel);
-        this.addDrawableChild(this.xField);
-        this.addDrawableChild(this.yField);
-        this.addDrawableChild(this.zField);
+//        this.xField = new TextFieldWidget(
+//                this.textRenderer,
+//                centerX - 10,
+//                75,
+//                25,
+//                20,
+//                Text.literal(String.valueOf(ox))
+//        );
+//        this.xField.setText(String.valueOf(this.ox));
+//        this.xField.setPlaceholder(Text.of(String.valueOf(this.ox)));
+//        this.xField.setChangedListener(text -> {
+//            try{
+//                this.nx = Double.parseDouble(text);
+//            } catch (Exception e) {
+//                this.nx = this.ox;
+//            }
+//        });
+//
+//        this.yField = new TextFieldWidget(
+//                this.textRenderer,
+//                centerX + 15,
+//                75,
+//                25,
+//                20,
+//                Text.literal(String.valueOf(oy))
+//        );
+//        this.yField.setText(String.valueOf(this.oy));
+//        this.yField.setPlaceholder(Text.of(String.valueOf(this.oy)));
+//        this.yField.setChangedListener(text -> {
+//            try{
+//                this.ny = Double.parseDouble(text);
+//            } catch (Exception e) {
+//                this.ny = this.oy;
+//            }
+//        });
+//
+//        this.zField = new TextFieldWidget(
+//                this.textRenderer,
+//                centerX + 40,
+//                75,
+//                25,
+//                20,
+//                Text.literal(String.valueOf(oz))
+//        );
+//        this.zField.setText(String.valueOf(this.oz));
+//        this.zField.setPlaceholder(Text.of(String.valueOf(this.oz)));
+//        this.zField.setChangedListener(text -> {
+//            try{
+//                this.nz = Double.parseDouble(text);
+//            } catch (Exception e) {
+//                this.nz = this.oz;
+//            }
+//        });
+//
+//        this.addDrawableChild(positionLabel);
+//        this.addDrawableChild(this.xField);
+//        this.addDrawableChild(this.yField);
+//        this.addDrawableChild(this.zField);
 
         // TODO: Create NBT editors for each NBT
 

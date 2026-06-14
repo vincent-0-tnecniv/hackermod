@@ -16,7 +16,7 @@ public class HackerMod implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		ModPackets.registerPackets();
+		ModPackets.registerServerPackets();
 		ModItems.registerModItems();
 		ModItemGroups.registerModItemGroups();
 		ModKeybindings.registerKeys();

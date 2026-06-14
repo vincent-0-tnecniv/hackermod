@@ -13,7 +13,6 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
 import net.vincent.hackermod.HackerMod;
 import net.vincent.hackermod.networking.EntityNbtPacket;
 import net.vincent.hackermod.networking.EntityTeleportPacket;
@@ -25,29 +24,30 @@ import java.util.List;
 
 public class HackerHandEntityNBTScreen extends Screen {
 
-    private Vec3d entityPos;
     private NbtCompound entityNbt;
-    private final World world;
-    private Entity entityEdited;
-    private TextFieldWidget entityIdField, xField, yField, zField;
+    private final Entity entityEdited;
+    private TextFieldWidget entityIdField;
+    private TextFieldWidget xField;
+    private TextFieldWidget yField;
+    private TextFieldWidget zField;
     private final String originalEntityId;
     private String newEntityId;
     private final double ox, oy, oz;
     private double nx, ny, nz;
+    public int yOffset = 135;
 
     private final List<NbtEditor> nbtEditors = new ArrayList<>();
 
     public int centerX;
     public int centerY;
 
-    public HackerHandEntityNBTScreen(Entity entity, World world) {
+    public HackerHandEntityNBTScreen(Entity entity) {
         super(Text.literal("Entity Editor - " + entity.getName().getString()));
         this.entityEdited = entity;
         this.entityNbt = new NbtCompound();
         entityEdited.writeNbt(this.entityNbt);
         this.originalEntityId = Registries.ENTITY_TYPE.getId(entity.getType()).getPath();
-        this.world = world;
-        this.entityPos = entity.getPos();
+        Vec3d entityPos = entity.getPos();
         this.ox = round(entityPos.getX(), 2);
         this.oy = round(entityPos.getY(), 2);
         this.oz = round(entityPos.getZ(), 2);
@@ -160,18 +160,46 @@ public class HackerHandEntityNBTScreen extends Screen {
         this.addDrawableChild(this.yField);
         this.addDrawableChild(this.zField);
 
+        TextWidget searchLabel = new TextWidget(
+                centerX - 100,
+                95,
+                80,
+                20,
+                Text.literal("Search for NBT:"),
+                this.textRenderer
+        );
+        searchLabel.setTextColor(0x00AAFF);
+
+        TextFieldWidget searchField = new TextFieldWidget(
+                this.textRenderer,
+                centerX - 10,
+                95,
+                150,
+                20,
+                Text.literal("Enter entity ID")
+        );
+        searchField.setText("");
+        searchField.setPlaceholder(Text.literal(""));
+        searchField.setChangedListener(this::refreshNbtEditors);
+
+        this.addDrawableChild(searchLabel);
+        this.addDrawableChild(searchField);
+
+        int count = 0;
         // Create NBT editors
-        int yOffset = 110;
         if (!(entityEdited instanceof PlayerEntity)) {
             for (String key : entityNbt.getKeys()) {
                 byte type = entityNbt.getType(key);
+                if(!isTypeEditable(type) || count == 5){
+                    continue;
+                }
+                // Temporarily skip arrays and complex types for editing (handled soon)
                 Object value = getNbtValue(entityNbt, key);
-
-                // Skip arrays and complex types for editing (display only)
                 boolean isEditable = isTypeEditable(type);
                 NbtEditor editor = new NbtEditor(key, value, type, yOffset, isEditable);
                 nbtEditors.add(editor);
                 yOffset += 35;
+                count++;
                 HackerMod.LOGGER.info("{}: {} (type: {}, editable: {})", key, value, type, isEditable);
             }
         }
@@ -179,55 +207,7 @@ public class HackerHandEntityNBTScreen extends Screen {
         // Confirm button
         this.addDrawableChild(ButtonWidget.builder(
                 Text.literal("Confirm"),
-                button -> {
-                    // Handle Entity Type Change
-                    if (hasEntityIdChanges()) {
-                        String finalEntityId = newEntityId.contains(":") ? newEntityId : "minecraft:" + newEntityId;
-                        double finalX = hasXChanges() ? nx : entityEdited.getX();
-                        double finalY = hasYChanges() ? ny : entityEdited.getY();
-                        double finalZ = hasZChanges() ? nz : entityEdited.getZ();
-
-                        ClientPlayNetworking.send(new EntityTransformPacket(
-                                entityEdited.getId(),
-                                finalEntityId,
-                                finalX, finalY, finalZ,
-                                entityEdited.getYaw(),
-                                entityEdited.getPitch()
-                        ));
-                    }
-                    // Handle Position change
-                    else if (hasXChanges() || hasYChanges() || hasZChanges()) {
-                        ClientPlayNetworking.send(new EntityTeleportPacket(entityEdited.getId(), nx, ny, nz));
-                        HackerMod.LOGGER.info("Moving entity to: {},{},{}", nx, ny, nz);
-                    }
-
-                    // Handle NBT changes
-                    boolean hasNbtChanges = false;
-                    for (NbtEditor editor : nbtEditors) {
-                        if (editor.hasChanges()) {
-                            ClientPlayNetworking.send(new EntityNbtPacket(
-                                    entityEdited.getId(),
-                                    editor.getName(),
-                                    editor.getValueAsString(),
-                                    editor.getDataType()
-                            ));
-                            hasNbtChanges = true;
-                        }
-                    }
-
-                    if (hasNbtChanges) {
-                        client.execute(() -> {
-                            try {
-                                Thread.sleep(100); // Small delay
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                            refreshEntityData();
-                        });
-                    }
-
-                    this.close();
-                }
+                button -> onConfirmed()
         ).dimensions(centerX + 10, centerY + 50, 100, 20).build());
 
         // Cancel button
@@ -235,6 +215,89 @@ public class HackerHandEntityNBTScreen extends Screen {
                 Text.literal("Cancel"),
                 button -> this.close()
         ).dimensions(centerX - 110, centerY + 50, 100, 20).build());
+    }
+
+    private void onConfirmed() {
+        // Handle Entity ID Change
+        if (hasEntityIdChanges()) {
+            String finalEntityId = newEntityId.contains(":") ? newEntityId : "minecraft:" + newEntityId;
+            double finalX = hasXChanges() ? nx : entityEdited.getX();
+            double finalY = hasYChanges() ? ny : entityEdited.getY();
+            double finalZ = hasZChanges() ? nz : entityEdited.getZ();
+
+            ClientPlayNetworking.send(new EntityTransformPacket(
+                    entityEdited.getId(),
+                    finalEntityId,
+                    finalX, finalY, finalZ,
+                    entityEdited.getYaw(),
+                    entityEdited.getPitch()
+            ));
+        }
+        // Handle Position change
+        else if (hasXChanges() || hasYChanges() || hasZChanges()) {
+            ClientPlayNetworking.send(new EntityTeleportPacket(entityEdited.getId(), nx, ny, nz));
+            HackerMod.LOGGER.info("Moving entity to: {},{},{}", nx, ny, nz);
+        }
+
+        // Handle NBT changes
+        boolean hasNbtChanges = false;
+        for (NbtEditor editor : nbtEditors) {
+            if (editor.hasChanges()) {
+                ClientPlayNetworking.send(new EntityNbtPacket(
+                        entityEdited.getId(),
+                        editor.getName(),
+                        editor.getValueAsString(),
+                        editor.getDataType()
+                ));
+                hasNbtChanges = true;
+            }
+        }
+
+        if (hasNbtChanges && client != null) {
+            client.execute(() -> {
+                try {
+                    Thread.sleep(100); // Small delay
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                refreshEntityData();
+            });
+        }
+
+        this.close();
+    }
+
+    private void refreshNbtEditors(String searchText) {
+        // Clear existing editors
+        for (NbtEditor editor : nbtEditors) {
+            editor.setVisible(false);
+        }
+        nbtEditors.clear();
+
+        int yOffset = 120;
+        int count = 0;
+        for (String key : entityNbt.getKeys()) {
+            // Filter based on search text
+            if (searchText != null && !searchText.isEmpty()) {
+                if (!key.toLowerCase().contains(searchText.toLowerCase())) {
+                    continue;  // Skip keys that don't match
+                }
+            }
+            if(key.equals("attributes")) {
+                continue;
+                // Do NOT handle attributes - they have a separate screen
+            }
+            if(count == 5){
+                continue;
+            }
+            byte type = entityNbt.getType(key);
+            Object value = getNbtValue(entityNbt, key);
+            boolean isEditable = isTypeEditable(type);
+            NbtEditor editor = new NbtEditor(key, value, type, yOffset, isEditable);
+            nbtEditors.add(editor);
+            yOffset += 35;
+            count++;
+        }
     }
 
     public void refreshEntityData() {
@@ -269,7 +332,7 @@ public class HackerHandEntityNBTScreen extends Screen {
     private boolean isTypeEditable(byte type) {
         // Only primitive types and strings are editable via text field
         // Arrays, Lists, and Compounds are read-only
-        return type >= 1 && type <= 8 && type != 9 && type != 10 && type != 11 && type != 12;
+        return type >= 1 && type <= 8;
     }
 
     private Object getNbtValue(NbtCompound nbt, String key) {
@@ -284,30 +347,33 @@ public class HackerHandEntityNBTScreen extends Screen {
 
         try {
             byte type = nbt.getType(key);
-            switch (type) {
-                case 1: return nbt.getBoolean(key);
-                case 2: return nbt.getByte(key);
-                case 3: return nbt.getShort(key);
-                case 4: return nbt.getInt(key);
-                case 5: return nbt.getLong(key);
-                case 6: return nbt.getFloat(key);
-                case 7: return nbt.getDouble(key);
-                case 8: return nbt.getString(key);
-                case 9:
+            return switch (type) {
+                case 1 -> nbt.getBoolean(key);
+                case 2 -> nbt.getByte(key);
+                case 3 -> nbt.getShort(key);
+                case 4 -> nbt.getInt(key);
+                case 5 -> nbt.getLong(key);
+                case 6 -> nbt.getFloat(key);
+                case 7 -> nbt.getDouble(key);
+                case 8 -> nbt.getString(key);
+                case 9 -> {
                     NbtList list = nbt.getList(key, 0);
-                    return list == null ? "[]" : list;
-                case 10:
+                    yield list == null ? "[]" : list;
+                }
+                case 10 -> {
                     NbtCompound compound = nbt.getCompound(key);
-                    return compound == null ? "{}" : compound;
-                case 11:
+                    yield compound == null ? "{}" : compound;
+                }
+                case 11 -> {
                     int[] intArray = nbt.getIntArray(key);
-                    return intArray == null ? new int[0] : intArray;
-                case 12:
+                    yield intArray == null ? new int[0] : intArray;
+                }
+                case 12 -> {
                     long[] longArray = nbt.getLongArray(key);
-                    return longArray == null ? new long[0] : longArray;
-                default:
-                    return "Unknown type: " + type;
-            }
+                    yield longArray == null ? new long[0] : longArray;
+                }
+                default -> "Unknown type: " + type;
+            };
         } catch (Exception e) {
             HackerMod.LOGGER.error("Error reading NBT key '{}': {}", key, e.getMessage());
             return "Error: " + e.getMessage();
@@ -318,52 +384,52 @@ public class HackerHandEntityNBTScreen extends Screen {
         if (value == null) return "null";
 
         try {
-            switch (type) {
-                case 1: // Boolean
-                case 2: // Byte
-                case 3: // Short
-                case 4: // Int
-                case 5: // Long
-                case 6: // Float
-                case 7: // Double
-                    return value.toString();
-                case 8: // String
-                    return (String) value;
-                case 9: // List
+            return switch (type) { // Boolean
+                // Byte
+                // Short
+                // Int
+                // Long
+                // Float
+                case 1, 2, 3, 4, 5, 6, 7 -> // Double
+                        value.toString();
+                case 8 -> // String
+                        (String) value;
+                case 9 -> {
                     if (value instanceof NbtList list) {
-                        if (list.isEmpty()) return "[] (read-only)";
-                        return String.format("[%d elements - read-only]", list.size());
+                        if (list.isEmpty()) yield "[] (read-only)";
+                        yield String.format("[%d elements - read-only]", list.size());
                     }
-                    return "[List - read-only]";
-                case 10: // Compound
+                    yield "[List - read-only]";
+                }
+                case 10 -> {
                     if (value instanceof NbtCompound compound) {
-                        if (compound.isEmpty()) return "{} (read-only)";
-                        return String.format("{%d entries - read-only}", compound.getKeys().size());
+                        if (compound.isEmpty()) yield "{} (read-only)";
+                        yield String.format("{%d entries - read-only}", compound.getKeys().size());
                     }
-                    return "{Compound - read-only}";
-                case 11: // INT_ARRAY
-                    if (value instanceof int[]) {
-                        int[] arr = (int[]) value;
-                        if (arr.length == 0) return "[] (read-only)";
+                    yield "{Compound - read-only}";
+                }
+                case 11 -> {
+                    if (value instanceof int[] arr) {
+                        if (arr.length == 0) yield "[] (read-only)";
                         if (arr.length > 5) {
-                            return String.format("[%d ints - read-only]", arr.length);
+                            yield String.format("[%d ints - read-only]", arr.length);
                         }
-                        return Arrays.toString(arr) + " (read-only)";
+                        yield Arrays.toString(arr) + " (read-only)";
                     }
-                    return "[IntArray - read-only]";
-                case 12: // LONG_ARRAY
-                    if (value instanceof long[]) {
-                        long[] arr = (long[]) value;
-                        if (arr.length == 0) return "[] (read-only)";
+                    yield "[IntArray - read-only]";
+                }
+                case 12 -> {
+                    if (value instanceof long[] arr) {
+                        if (arr.length == 0) yield "[] (read-only)";
                         if (arr.length > 5) {
-                            return String.format("[%d longs - read-only]", arr.length);
+                            yield String.format("[%d longs - read-only]", arr.length);
                         }
-                        return Arrays.toString(arr) + " (read-only)";
+                        yield Arrays.toString(arr) + " (read-only)";
                     }
-                    return "[LongArray - read-only]";
-                default:
-                    return value.toString();
-            }
+                    yield "[LongArray - read-only]";
+                }
+                default -> value.toString();
+            };
         } catch (Exception e) {
             return "Error: " + e.getMessage();
         }
@@ -390,6 +456,7 @@ public class HackerHandEntityNBTScreen extends Screen {
     }
 
     private class NbtEditor {
+        private final TextWidget labelWidget;
         private final TextFieldWidget valueField;
         private final String key;
         private final Object oldValue;
@@ -410,7 +477,7 @@ public class HackerHandEntityNBTScreen extends Screen {
             int startX = centerX - (labelWidth + fieldWidth + spacing) / 2;
 
             // Label
-            TextWidget labelWidget = new TextWidget(
+            this.labelWidget = new TextWidget(
                     startX,
                     yPos,
                     labelWidth,
@@ -440,7 +507,7 @@ public class HackerHandEntityNBTScreen extends Screen {
                 this.valueField.setPlaceholder(Text.literal("Read-only value"));
             }
 
-            HackerHandEntityNBTScreen.this.addDrawableChild(labelWidget);
+            HackerHandEntityNBTScreen.this.addDrawableChild(this.labelWidget);
             HackerHandEntityNBTScreen.this.addDrawableChild(this.valueField);
         }
 
@@ -462,18 +529,9 @@ public class HackerHandEntityNBTScreen extends Screen {
             return !newValue.equals(currentDisplay) && !newValue.isEmpty();
         }
 
-        public void refreshValue(NbtCompound freshNbt) {
-            if (freshNbt.contains(key)) {
-                Object currentValue = getNbtValue(freshNbt, key);
-                String displayValue = formatValueForDisplay(currentValue, dataType);
-                this.valueField.setText(displayValue);
-                this.newValue = displayValue;
-
-                // Also update the placeholder
-                this.valueField.setPlaceholder(Text.literal("Current: " + displayValue));
-
-                HackerMod.LOGGER.info("Refreshed {} to: {}", key, displayValue);
-            }
+        public void setVisible(boolean visible) {
+            labelWidget.visible = visible;
+            valueField.visible = visible;
         }
     }
 

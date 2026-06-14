@@ -16,9 +16,10 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.vincent.hackermod.HackerMod;
+import net.vincent.hackermod.screen.HackerHandEntityNBTScreen;
 
 public class ModPackets {
-    public static void registerPackets(){
+    public static void registerServerPackets(){
 
         PayloadTypeRegistry.playC2S().register(BlockStateUpdatePacket.ID, BlockStateUpdatePacket.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(BlockStateUpdatePacket.ID, (packet, context) -> {
@@ -241,6 +242,23 @@ public class ModPackets {
         HackerMod.LOGGER.info("Registered Packets for " + HackerMod.MOD_ID);
     }
 
+    public static void registerClientPackets() {
+        ClientPlayNetworking.registerGlobalReceiver(EntitySyncPacket.ID, (packet, context) -> {
+            context.client().execute(() -> {
+                Entity entity = context.client().world.getEntityById(packet.entityId());
+                if (entity != null) {
+                    // Update the entity with synced NBT
+                    entity.readNbt(packet.nbt());
+
+                    // Refresh the screen if it's open
+                    if (context.client().currentScreen instanceof HackerHandEntityNBTScreen screen) {
+                        screen.refreshEntityData();
+                    }
+                }
+            });
+        });
+    }
+
     private static void setNbtValue(NbtCompound nbt, String key, String valueStr, byte type) {
         try {
             switch (type) {
@@ -273,28 +291,6 @@ public class ModPackets {
             }
         } catch (NumberFormatException e) {
             HackerMod.LOGGER.error("Failed to parse value for key {}: {}", key, valueStr);
-        }
-    }
-
-    private static void setNbtValueFromString(NbtCompound nbt, String key, String valueStr) {
-        if (nbt.contains(key)) {
-            byte type = nbt.getType(key);
-            try {
-                switch (type) {
-                    case 1: nbt.putBoolean(key, Boolean.parseBoolean(valueStr)); break;
-                    case 2: nbt.putByte(key, Byte.parseByte(valueStr)); break;
-                    case 3: nbt.putShort(key, Short.parseShort(valueStr)); break;
-                    case 4: nbt.putInt(key, Integer.parseInt(valueStr)); break;
-                    case 5: nbt.putLong(key, Long.parseLong(valueStr)); break;
-                    case 6: nbt.putFloat(key, Float.parseFloat(valueStr)); break;
-                    case 7: nbt.putDouble(key, Double.parseDouble(valueStr)); break;
-                    default: nbt.putString(key, valueStr);
-                }
-            } catch (NumberFormatException e) {
-                nbt.putString(key, valueStr);
-            }
-        } else {
-            nbt.putString(key, valueStr);
         }
     }
 

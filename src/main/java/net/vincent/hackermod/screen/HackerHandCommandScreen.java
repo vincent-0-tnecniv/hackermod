@@ -1,6 +1,5 @@
 package net.vincent.hackermod.screen;
 
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -9,7 +8,6 @@ import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.widget.TextWidget;
 import net.minecraft.text.Text;
 import net.vincent.hackermod.HackerMod;
-import net.vincent.hackermod.networking.CommandPacket;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -109,9 +107,9 @@ public class HackerHandCommandScreen extends Screen {
         }
 
         // Add to history
-        commandHistory.add(0, command);
+        commandHistory.addFirst(command);
         if (commandHistory.size() > 20) {
-            commandHistory.remove(commandHistory.size() - 1);
+            commandHistory.removeLast();
         }
         selectedCommandIndex = -1;
 
