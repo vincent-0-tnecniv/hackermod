@@ -16,6 +16,7 @@ import net.minecraft.world.World;
 import net.vincent.hackermod.screen.HackerHandBlockScreen;
 import net.vincent.hackermod.screen.HackerHandEntityNBTScreen;
 import net.vincent.hackermod.screen.HackerHandSummonScreen;
+import org.jetbrains.annotations.NotNull;
 
 public class HackerHandItem extends Item {
 
@@ -73,21 +74,6 @@ public class HackerHandItem extends Item {
             }
         }
         return TypedActionResult.pass(player.getStackInHand(hand));
-    }
-
-    // In your HackerHandItem.java or a command handler
-    public static void toggleCreativeFlight(PlayerEntity player) {
-        if (player.getAbilities().allowFlying) {
-            // Disable flight
-            player.getAbilities().allowFlying = false;
-            player.getAbilities().flying = false;
-            player.sendMessage(Text.literal("§cFlight disabled"), true);
-        } else {
-            // Enable flight
-            player.getAbilities().allowFlying = true;
-            player.sendMessage(Text.literal("§aFlight enabled! Press jump twice to fly"), true);
-        }
-        player.sendAbilitiesUpdate();
     }
 
     private Entity getTargetEntity(PlayerEntity player, double range) {

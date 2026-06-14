@@ -1,5 +1,6 @@
 package net.vincent.hackermod.networking;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.Block;
@@ -9,11 +10,11 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import net.vincent.hackermod.HackerMod;
 
 public class ModPackets {
@@ -121,13 +122,46 @@ public class ModPackets {
         });
         HackerMod.LOGGER.info("Registered Command Packets!");
 
-        PayloadTypeRegistry.playC2S().register(EntityNBTPacket.ID, EntityNBTPacket.CODEC);
-        ServerPlayNetworking.registerGlobalReceiver(EntityNBTPacket.ID, (packet, context) -> {
+        PayloadTypeRegistry.playC2S().register(EntityTeleportPacket.ID, EntityTeleportPacket.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(EntityTeleportPacket.ID, (packet, context) -> {
             context.server().execute(() -> {
                 var world = context.player().getWorld();
                 var entity = world.getEntityById(packet.entityId());
                 if (entity != null) {
                     entity.setPos(packet.x(), packet.y(), packet.z());
+                }
+            });
+        });
+        HackerMod.LOGGER.info("Registered Entity Teleport Packets!");
+
+        // At the start of your EntityNbtPacket server handler
+
+        PayloadTypeRegistry.playC2S().register(EntityNbtPacket.ID, EntityNbtPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(EntitySyncPacket.ID, EntitySyncPacket.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(EntityNbtPacket.ID, (packet, context) -> {
+            context.server().execute(() -> {
+                ServerWorld world = context.player().getServerWorld();
+                Entity entity = world.getEntityById(packet.entityId());
+
+                if (entity != null) {
+                    HackerMod.LOGGER.info("SERVER: Updating entity {} - {} = {}",
+                            packet.entityId(), packet.key(), packet.value());
+
+                    // Apply the change
+                    NbtCompound nbt = new NbtCompound();
+                    entity.writeNbt(nbt);
+                    setNbtValue(nbt, packet.key(), packet.value(), packet.type());
+                    entity.readNbt(nbt);
+
+                    // Create sync packet with updated NBT
+                    NbtCompound syncNbt = new NbtCompound();
+                    entity.writeNbt(syncNbt);
+
+                    HackerMod.LOGGER.info("SERVER: Sending sync packet to client - Invulnerable: {}",
+                            syncNbt.getBoolean("Invulnerable"));
+
+                    // Send back to the client
+                    ServerPlayNetworking.send(context.player(), new EntitySyncPacket(entity.getId(), syncNbt));
                 }
             });
         });
@@ -210,6 +244,41 @@ public class ModPackets {
         HackerMod.LOGGER.info("Registered Entity Transformation Packets!");
 
         HackerMod.LOGGER.info("Registered Packets for " + HackerMod.MOD_ID);
+    }
+
+    private static void setNbtValue(NbtCompound nbt, String key, String valueStr, byte type) {
+        try {
+            switch (type) {
+                case 1: // Boolean
+                    nbt.putBoolean(key, Boolean.parseBoolean(valueStr));
+                    break;
+                case 2: // Byte
+                    nbt.putByte(key, Byte.parseByte(valueStr));
+                    break;
+                case 3: // Short
+                    nbt.putShort(key, Short.parseShort(valueStr));
+                    break;
+                case 4: // Int
+                    nbt.putInt(key, Integer.parseInt(valueStr));
+                    break;
+                case 5: // Long
+                    nbt.putLong(key, Long.parseLong(valueStr));
+                    break;
+                case 6: // Float
+                    nbt.putFloat(key, Float.parseFloat(valueStr));
+                    break;
+                case 7: // Double
+                    nbt.putDouble(key, Double.parseDouble(valueStr));
+                    break;
+                case 8: // String
+                    nbt.putString(key, valueStr);
+                    break;
+                default:
+                    nbt.putString(key, valueStr);
+            }
+        } catch (NumberFormatException e) {
+            HackerMod.LOGGER.error("Failed to parse value for key {}: {}", key, valueStr);
+        }
     }
 
     private static void setNbtValueFromString(NbtCompound nbt, String key, String valueStr) {

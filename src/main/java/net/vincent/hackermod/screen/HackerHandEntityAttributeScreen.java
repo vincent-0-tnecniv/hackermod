@@ -13,7 +13,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
-import net.vincent.hackermod.networking.EntityNBTPacket;
+import net.vincent.hackermod.networking.EntityTeleportPacket;
 
 public class HackerHandEntityAttributeScreen extends Screen {
 
@@ -173,7 +173,7 @@ public class HackerHandEntityAttributeScreen extends Screen {
                     else{
                         // Handle Block Position change
                         if(hasXChanges() || hasYChanges() || hasZChanges()){
-                            ClientPlayNetworking.send(new EntityNBTPacket(entityEdited.getId(), nx, ny, nz));
+                            ClientPlayNetworking.send(new EntityTeleportPacket(entityEdited.getId(), nx, ny, nz));
                         }
 
                         // TODO: Handle attribute changes
